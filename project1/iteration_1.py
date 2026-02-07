@@ -1,5 +1,14 @@
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+token = os.getenv("GITHUB_TOKEN")
+
+headers ={
+      'Authorization': f'token {token}',
+    }
 
 # get my user ID
 USERNAME = 'sarayuv'
