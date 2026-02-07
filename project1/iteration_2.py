@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 import random
 import time
-import math
 import matplotlib.pyplot as plt
 
 load_dotenv()
