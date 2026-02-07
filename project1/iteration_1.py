@@ -2,6 +2,8 @@ import requests
 import json
 import os
 from dotenv import load_dotenv
+import random
+import time
 
 load_dotenv()
 token = os.getenv("GITHUB_TOKEN")
@@ -31,6 +33,7 @@ print(json_formatted_str)
 
 # It will return 30 results for each request. You could consider using "for" loop to crawl more data.
 # The sample code is a simple way to collect GitHub users' ID. You can consider other ways to collect data.
+""" 
 {'login': 'mojombo',
      'id': 1,
      'node_id': 'MDQ6VXNlcjE=',
@@ -48,14 +51,49 @@ print(json_formatted_str)
      'events_url': 'https://api.github.com/users/mojombo/events{/privacy}',
      'received_events_url': 'https://api.github.com/users/mojombo/received_events',
      'type': 'User',
-     'site_admin': False}
+     'site_admin': False} 
+"""
      
 #sample NUM ids since UID    
 def sample(uid,num):
-    ...
+    """
+    randomly sample GitHub user IDs and check whether the sampled IDs are valid or not.
+    
+    :param uid: Description
+    :param num: Description
+
+    :return: list of 0 (invalid) or 1 (valid) values
+    """
+    sample_data = []
+
+    for i in range(num):
+        sampled_id = random.randint(1, uid)
+
+        response = requests.get(f'https://api.github.com/user/{sampled_id}', headers=headers)
+
+        if response.status_code == 200:
+            sample_data.append(1)
+        else:
+            sample_data.append(0)
+
+        time.sleep(0.25)
+
     return sample_data
     
 #use downloaded data to build estimator  
-def estimate(sample_data):
-    ...
+def estimate(sample_data, max_uid):
+    """
+    estimate the total number of valid users based on the sampled data
+    
+    :param sample_data: Description
+    :param max_uid: Description
+    :return: estimation of the total number of valid users
+    """
+
+    valid = sum(sample_data)
+    total = len(sample_data)
+    
+    p_hat = valid / total
+    estimation = p_hat * max_uid
+
     return estimation
