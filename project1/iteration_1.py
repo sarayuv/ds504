@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import random
 import time
+import math
 
 load_dotenv()
 token = os.getenv("GITHUB_TOKEN")
@@ -64,9 +65,10 @@ def sample(uid,num):
 
     :return: list of 0 (invalid) or 1 (valid) values
     """
+
     sample_data = []
 
-    for i in range(num):
+    for _ in range(num):
         sampled_id = random.randint(1, uid)
 
         response = requests.get(f'https://api.github.com/user/{sampled_id}', headers=headers)
@@ -96,4 +98,27 @@ def estimate(sample_data, max_uid):
     p_hat = valid / total
     estimation = p_hat * max_uid
 
+    print("Sample size:", len(sample_data))
+    print("Valid samples:", sum(sample_data))
+    print("Estimated total valid users:", int(estimation))
+
     return estimation
+
+if __name__ == "__main__":
+    MAX_UID = 150_000_000
+    SAMPLE_SIZE = 500
+
+    print("\nRunning Iteration 1 Sampling")
+    sample_data = sample(MAX_UID, SAMPLE_SIZE)
+
+    print("\nEstimation")
+    estimate(sample_data, MAX_UID)
+
+    p_hat = sum(sample_data) / len(sample_data)
+    n = len(sample_data)
+
+    stderr = math.sqrt(p_hat * (1 - p_hat) / n)
+    ci_low = (p_hat - 1.96 * stderr) * MAX_UID
+    ci_high = (p_hat + 1.96 * stderr) * MAX_UID
+
+    print(f"\n95% Confidence Interval: [{int(ci_low)}, {int(ci_high)}]")
