@@ -14,9 +14,20 @@ headers = {
       'Authorization': f'token {token}',
     }
 
+# fetch user ID for the new username
+response = requests.get(f'https://api.github.com/users/sarayu-sase', headers=headers)
+if response.status_code == 200:
+    user_data = response.json()
+    user_id = user_data['id']
+    print(f"\nUser: sarayu-sase")
+    print(f"User ID: {user_id}") # should be 257849955
+else:
+    print(f"Error fetching user data: {response.status_code}")
+    user_id = 150000000  # default if fetch fails
+
 # parameters
 VALIDATION_MAX_ID = 10000
-GLOBAL_MAX_ID = 150000000
+GLOBAL_MAX_ID = user_id # should be 257849955
 SAMPLING_BUDGETS = [500, 1000, 2000, 5000]
 RUNS_PER_BUDGET = 10
 REQUEST_DELAY = 0.25
@@ -31,12 +42,14 @@ def build_validation_set(max_id):
 
     valid_users = set()
 
+    # check each user ID in the range and add valid ones to the set
     for uid in range(1, max_id + 1):
         response = requests.get(f'https://api.github.com/user/{uid}', headers=headers)
 
         if response.status_code == 200:
             valid_users.add(uid)
 
+        # sleep to avoid hitting rate limit
         time.sleep(REQUEST_DELAY)
 
     print(f"\n{len(valid_users)} valid users found.")
@@ -46,7 +59,7 @@ def build_validation_set(max_id):
 
 def sample(uid, num, valid_set=None):
     """
-    randomly sample GitHub user IDs and check whether the sampled IDs are valid or not.
+    Use GitHub Users API to fetch batches of users and check whether the sampled IDs are valid or not.
     
     :param uid: maximum user ID to sample from
     :param num: number of samples to draw
@@ -56,23 +69,62 @@ def sample(uid, num, valid_set=None):
     """
 
     sample_data = []
-
-    for _ in range(num):
-        sampled_id = random.randint(1, uid)
-
-        if valid_set is not None:
-            sample_data.append(1 if sampled_id in valid_set else 0)
-        else:
-            response = requests.get(f'https://api.github.com/user/{sampled_id}', headers=headers)
-            sample_data.append(1 if response.status_code == 200 else 0)
-            time.sleep(REQUEST_DELAY)
-
+    collected = 0
+    
+    # start from a random ID
+    since_id = random.randint(0, max(1, uid // 2))
+    per_page = 100  # max allowed by GitHub
+    
+    while collected < num:
+        response = requests.get(
+            f'https://api.github.com/users?since={since_id}&per_page={per_page}',
+            headers=headers
+        )
+        
+        if response.status_code != 200:
+            print(f"API error: {response.status_code}")
+            break
+            
+        users = response.json()
+        
+        # check if user list is empty (end of available users)
+        if not users:
+            # wrap around to beginning if end of list is reached
+            since_id = 0
+            continue
+        
+        # process fetched users 
+        for user in users:
+            # break out of loop if enough samples have been collected
+            if collected >= num:
+                break
+                
+            user_id = user['id']
+            
+            # only consider users within our max_id range
+            if user_id <= uid:
+                # check validity using validation set if provided
+                if valid_set is not None:
+                    sample_data.append(1 if user_id in valid_set else 0)
+                else:
+                    # if no validation set, assume all fetched users are valid since they exist in API
+                    sample_data.append(1)
+                # increment collected count
+                collected += 1
+        
+        # move to next page
+        if users:
+            since_id = users[-1]['id']
+        
+        # sleep to avoid hitting rate limit 
+        time.sleep(REQUEST_DELAY)
+    
     return sample_data
     
 
 def estimate(sample_data, max_uid):
     """
-    estimate the total number of valid users based on the sampled data
+    Estimate the total number of valid users based on the sampled data
     
     :param sample_data: list of 0 (invalid) or 1 (valid) values
     :param max_uid: maximum user ID considered in the sampling
@@ -133,9 +185,14 @@ if __name__ == "__main__":
         writer.writerows(summary_rows)
 
     # PLOT
-    for budget, estimates in estimates_by_budget.items():
-        plt.scatter([budget] * len(estimates), estimates, label=f'Budget {budget}')
+    budget_labels = []
+    estimate_values = []
 
+    for budget, estimates in estimates_by_budget.items():
+        budget_labels.append(budget)
+        estimate_values.append(estimates)
+
+    plt.boxplot(estimate_values, label=budget_labels)
     plt.axhline(y=ground_truth, color='darkblue', linestyle='--', label='Ground Truth')
     plt.xlabel('Sampling Budget')
     plt.ylabel('Estimated Valid Users')
