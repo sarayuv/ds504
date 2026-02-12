@@ -132,6 +132,10 @@ def estimate(sample_data, max_uid):
     :return: estimation of the total number of valid users
     """
 
+    if not sample_data:
+        print("No sample data.")
+        return 0
+
     p_hat = sum(sample_data) / len(sample_data)
     estimation = p_hat * max_uid
 
