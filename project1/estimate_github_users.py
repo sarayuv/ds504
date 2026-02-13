@@ -175,7 +175,7 @@ if __name__ == "__main__":
     estimate_values = []
 
     for budget, estimates in estimates_by_budget.items():
-        budget_labels.append(budget)
+        budget_labels.append(str(budget))
         estimate_values.append(estimates)
 
     plt.boxplot(estimate_values, label=budget_labels)
@@ -184,6 +184,7 @@ if __name__ == "__main__":
     plt.ylabel('Estimated Valid Users')
     plt.title('Estimation of Valid GitHub Users vs Sampling Budget')
     plt.legend()
+    plt.tight_layout()
     plt.show()
 
     # ESTIMATE FULL ID SPACE
