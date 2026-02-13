@@ -41,6 +41,7 @@ def build_validation_set(max_id):
     """
 
     valid_users = set()
+    print(f"Building validation set for user IDs in range [1, {max_id}].")
 
     # check each user ID in the range and add valid ones to the set
     for uid in range(1, max_id + 1):
@@ -48,6 +49,9 @@ def build_validation_set(max_id):
 
         if response.status_code == 200:
             valid_users.add(uid)
+        
+        if uid % 1000 == 0:
+            print(f"Checked up to user ID {uid} - valid users found so far: {len(valid_users)}")
 
         # sleep to avoid hitting rate limit
         time.sleep(REQUEST_DELAY)
@@ -59,7 +63,7 @@ def build_validation_set(max_id):
 
 def sample(uid, num, valid_set=None):
     """
-    Use GitHub Users API to fetch batches of users and check whether the sampled IDs are valid or not.
+    Use a uniform random sampling approach to fetch batches of users and check whether the sampled IDs are valid or not.
     
     :param uid: maximum user ID to sample from
     :param num: number of samples to draw
@@ -69,56 +73,34 @@ def sample(uid, num, valid_set=None):
     """
 
     sample_data = []
-    collected = 0
-    
-    # start from a random ID
-    since_id = random.randint(0, max(1, uid // 2))
-    per_page = 100  # max allowed by GitHub
-    
-    while collected < num:
-        response = requests.get(
-            f'https://api.github.com/users?since={since_id}&per_page={per_page}',
-            headers=headers
-        )
-        
-        if response.status_code != 200:
-            print(f"API error: {response.status_code}")
-            break
+    # generate a random starting point for sampling
+    sampled_ids = random.sample(range(1, uid + 1), num)
+
+    print(f"\nSampling {num} user IDs up to {uid}.")
+
+    for i, user_id in enumerate(sampled_ids):
+        # check validity using validation set if provided
+        if valid_set is not None:
+            sample_data.append(1 if user_id in valid_set else 0)
+        else:
+            # check validity by making API request
+            response = requests.get(f'https://api.github.com/user/{user_id}', headers=headers)
+
+            if response.status_code == 200:
+                # record valid user
+                sample_data.append(1)
+            else:
+                # record invalid user
+                sample_data.append(0)
             
-        users = response.json()
+            # sleep to avoid hitting rate limit 
+            time.sleep(REQUEST_DELAY)
+
+        # print progress every 500 samples
+        if (i + 1) % 500 == 0:
+            print(f"Collected {i + 1}/{num} samples so far.")    
         
-        # check if user list is empty (end of available users)
-        if not users:
-            # wrap around to beginning if end of list is reached
-            since_id = 0
-            continue
-        
-        # process fetched users 
-        for user in users:
-            # break out of loop if enough samples have been collected
-            if collected >= num:
-                break
-                
-            user_id = user['id']
-            
-            # only consider users within our max_id range
-            if user_id <= uid:
-                # check validity using validation set if provided
-                if valid_set is not None:
-                    sample_data.append(1 if user_id in valid_set else 0)
-                else:
-                    # if no validation set, assume all fetched users are valid since they exist in API
-                    sample_data.append(1)
-                # increment collected count
-                collected += 1
-        
-        # move to next page
-        if users:
-            since_id = users[-1]['id']
-        
-        # sleep to avoid hitting rate limit 
-        time.sleep(REQUEST_DELAY)
-    
+    print(f"Sampling complete: Collected {len(sample_data)} samples.")
     return sample_data
     
 
