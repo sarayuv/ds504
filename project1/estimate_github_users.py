@@ -193,3 +193,7 @@ if __name__ == "__main__":
     full_sample_data = sample(GLOBAL_MAX_ID, FULL_SAMPLE_SIZE)
     full_estimate = estimate(full_sample_data, GLOBAL_MAX_ID)
     print(f"Estimated total valid users in full ID space: {int(full_estimate)}")
+
+    # save results to file
+    with open('final_estimate.txt', 'w', newline='') as txtfile:
+        txtfile.write(f"Estimated total valid users in full ID space: {int(full_estimate)}\n")
