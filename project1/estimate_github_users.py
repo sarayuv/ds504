@@ -26,9 +26,9 @@ else:
     user_id = 150000000  # default if fetch fails
 
 # parameters
-VALIDATION_MAX_ID = 10000
+VALIDATION_MAX_ID = 5000
 GLOBAL_MAX_ID = user_id # should be 257849955
-SAMPLING_BUDGETS = [500, 1000, 2000, 5000]
+SAMPLING_BUDGETS = [200, 500, 1000, 2000]
 RUNS_PER_BUDGET = 10
 REQUEST_DELAY = 0.25
 
@@ -50,7 +50,7 @@ def build_validation_set(max_id):
         if response.status_code == 200:
             valid_users.add(uid)
         
-        if uid % 1000 == 0:
+        if uid % 500 == 0:
             print(f"Checked up to user ID {uid} - valid users found so far: {len(valid_users)}")
 
         # sleep to avoid hitting rate limit
@@ -83,21 +83,31 @@ def sample(uid, num, valid_set=None):
         if valid_set is not None:
             sample_data.append(1 if user_id in valid_set else 0)
         else:
-            # check validity by making API request
-            response = requests.get(f'https://api.github.com/user/{user_id}', headers=headers)
+            while True:
+                # check validity by making API request
+                response = requests.get(f'https://api.github.com/user/{user_id}', headers=headers)
 
-            if response.status_code == 200:
-                # record valid user
-                sample_data.append(1)
-            else:
-                # record invalid user
-                sample_data.append(0)
-            
+                # handle rate limit
+                if response.status_code == 403:
+                    # calculate wait time until rate limit resets
+                    reset_time = int(response.headers['X-RateLimit-Reset']) 
+                    wait_time = max(reset_time - int(time.time()), 1)
+                    print("\nRate limit hit.")
+                    # sleep before retrying
+                    time.sleep(wait_time)  
+                elif response.status_code == 200:
+                    # record valid user
+                    sample_data.append(1)
+                else:
+                    # record invalid user
+                    sample_data.append(0)
+                break
+
             # sleep to avoid hitting rate limit 
             time.sleep(REQUEST_DELAY)
 
         # print progress every 500 samples
-        if (i + 1) % 500 == 0:
+        if (i + 1) % 200 == 0:
             print(f"Collected {i + 1}/{num} samples so far.")    
         
     print(f"Sampling complete: Collected {len(sample_data)} samples.")
@@ -165,7 +175,7 @@ if __name__ == "__main__":
         print(f"{budget:<10} {mean_estimate:<20.2f} {std_dev:<15.2f} {ground_truth:<15}")
 
     # save table to CSV
-    with open('estimation_summary.csv', 'w', newline='') as csvfile:
+    with open('project1/estimation_summary.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Budget', 'Mean Estimate', 'Std Dev', 'Ground Truth'])
         writer.writerows(summary_rows)
@@ -189,11 +199,11 @@ if __name__ == "__main__":
 
     # ESTIMATE FULL ID SPACE
     print("\nEstimating Full ID Space")
-    FULL_SAMPLE_SIZE = 10000
+    FULL_SAMPLE_SIZE = 1000
     full_sample_data = sample(GLOBAL_MAX_ID, FULL_SAMPLE_SIZE)
     full_estimate = estimate(full_sample_data, GLOBAL_MAX_ID)
     print(f"Estimated total valid users in full ID space: {int(full_estimate)}")
 
     # save results to file
-    with open('final_estimate.txt', 'w', newline='') as txtfile:
+    with open('project1/final_estimate.txt', 'w', newline='') as txtfile:
         txtfile.write(f"Estimated total valid users in full ID space: {int(full_estimate)}\n")
