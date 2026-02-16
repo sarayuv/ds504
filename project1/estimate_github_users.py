@@ -175,7 +175,7 @@ if __name__ == "__main__":
         print(f"{budget:<10} {mean_estimate:<20.2f} {std_dev:<15.2f} {ground_truth:<15}")
 
     # save table to CSV
-    with open('project1/estimation_summary.csv', 'w', newline='') as csvfile:
+    with open('estimation_summary.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Budget', 'Mean Estimate', 'Std Dev', 'Ground Truth'])
         writer.writerows(summary_rows)
@@ -205,5 +205,5 @@ if __name__ == "__main__":
     print(f"Estimated total valid users in full ID space: {int(full_estimate)}")
 
     # save results to file
-    with open('project1/final_estimate.txt', 'w', newline='') as txtfile:
+    with open('final_estimate.txt', 'w', newline='') as txtfile:
         txtfile.write(f"Estimated total valid users in full ID space: {int(full_estimate)}\n")
