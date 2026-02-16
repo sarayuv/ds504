@@ -175,7 +175,7 @@ if __name__ == "__main__":
         print(f"{budget:<10} {mean_estimate:<20.2f} {std_dev:<15.2f} {ground_truth:<15}")
 
     # save table to CSV
-    with open('estimation_summary.csv', 'w', newline='') as csvfile:
+    with open('Table_1.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Budget', 'Mean Estimate', 'Std Dev', 'Ground Truth'])
         writer.writerows(summary_rows)
@@ -195,7 +195,8 @@ if __name__ == "__main__":
     plt.title('Estimation of Valid GitHub Users vs Sampling Budget')
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    plt.savefig('Figure_1.png')
+    # plt.show()
 
     # ESTIMATE FULL ID SPACE
     print("\nEstimating Full ID Space")
