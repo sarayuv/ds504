@@ -4,10 +4,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
 from model import TaxiDriverClassifier
-from extract_feature import load_data, preprocess_data
-import time
+from extract_feature import load_data
 
 if torch.cuda.is_available():
   device = torch.device("cuda:0")
@@ -39,7 +37,7 @@ class TaxiDriverDataset(Dataset):
         y = self.tensors[1][idx]
         return x, y
 
-def train(model, optimizer, criterion, train_loader, device):
+def train(model, optimizer, criterion, train_loader, device, epoch):
     """
     Function to handle the training of the model.
     Iterates over the training dataset and updates model parameters.
@@ -50,18 +48,19 @@ def train(model, optimizer, criterion, train_loader, device):
     total_loss = 0.0
     correct = 0
     total = 0
+    running_loss = 0.0
 
-    for i, (inp, lab) in enumerate(tqdm(train_loader, desc="Training", leave=False), 0):
+    # loop over batches of data
+    for i, (inp, lab) in enumerate(train_loader, 0):
         # get the inputs- data is a list of [inputs, labels]
         inputs, labels = inp.to(device), lab.to(device)
-
+        
         optimizer.zero_grad()
 
         # forward pass
         logits = model(inputs)
         # compute loss
         loss = criterion(logits, labels)
-
         # compute gradients
         loss.backward()
 
@@ -71,11 +70,17 @@ def train(model, optimizer, criterion, train_loader, device):
         # update weights
         optimizer.step()
 
+        # accumulate loss and compute accuracy
         total_loss += loss.item()
+        running_loss += loss.item()
         preds = logits.argmax(dim=1)
         correct += (preds == labels).sum().item()
         total += labels.size(0)
+
+        # print statistics every 100 batches
+        print('[%d, %5d] loss: %.3f' % (epoch, i + 1, running_loss / (i + 1)))
     
+    # average loss and accuracy for the epoch
     train_loss = total_loss / len(train_loader)
     train_acc = correct / total
 
@@ -182,24 +187,28 @@ def train_model():
     best_val_acc = 0.0
 
     for epoch in range(1, NUM_EPOCHS + 1):
-        # measure time for each epoch
-        start_time = time.time()
         # train for one epoch
-        train_loss, train_acc = train(model, optimizer, criterion, train_loader, device)
+        train_loss, train_acc = train(model, optimizer, criterion, train_loader, device, epoch)
         val_loss, val_acc = evaluate(model, criterion, val_loader, device)
         # step the learning rate scheduler
         scheduler.step(val_loss)
-        # measure end time
-        end_time = time.time()
 
-        print(f"Epoch {epoch}/{NUM_EPOCHS} completed in {end_time - start_time:.2f}s")
+        print(f"Epoch {epoch}/{NUM_EPOCHS}")
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
         # save the best model based on validation accuracy
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), MODEL_PATH)
+            torch.save(
+                {
+                    "model_state_dict": model.state_dict(),
+                    "label_map": label_map,
+                    "input_dim": input_dim,
+                    "num_classes": num_classes,
+                },
+                MODEL_PATH,
+            )
             print(f"New best model saved with Val Acc: {best_val_acc:.4f}")
         
     print(f"\nTraining complete. Best Val Acc: {best_val_acc:.4f}")
