@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from model import TaxiDriverClassifier
 from extract_feature import load_data
+import matplotlib.pyplot as plt
 
 if torch.cuda.is_available():
   device = torch.device("cuda:0")
@@ -122,6 +123,37 @@ def evaluate(model, criterion, test_loader, device):
 
     return test_loss, test_acc
 
+def plot_results(train_losses, val_losses, train_accuracies, val_accuracies):
+    """
+    Plot training and validation loss/accuracy curves.
+    """
+
+    epochs = range(1, len(train_losses) + 1)
+
+    plt.figure(figsize=(12, 5))
+
+    # plot loss
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, label='Training Loss')
+    plt.plot(epochs, val_losses, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Loss Curve')
+    plt.legend()
+
+    # plot accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, train_accuracies, label='Training Accuracy')
+    plt.plot(epochs, val_accuracies, label='Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy Curve')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.savefig('training_results.png')
+    plt.show()
+
 def train_model():
     """
     Main function to initiate the model training process.
@@ -186,12 +218,22 @@ def train_model():
     # training loop
     best_val_acc = 0.0
 
+    # store metrics for plotting
+    train_losses, val_losses = [], []
+    train_accuracies, val_accuracies = [], []
+
     for epoch in range(1, NUM_EPOCHS + 1):
         # train for one epoch
         train_loss, train_acc = train(model, optimizer, criterion, train_loader, device, epoch)
         val_loss, val_acc = evaluate(model, criterion, val_loader, device)
         # step the learning rate scheduler
         scheduler.step(val_loss)
+
+        # record metrics for plotting
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        train_accuracies.append(train_acc)
+        val_accuracies.append(val_acc)
 
         print(f"Epoch {epoch}/{NUM_EPOCHS}")
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
@@ -210,5 +252,8 @@ def train_model():
                 MODEL_PATH,
             )
             print(f"New best model saved with Val Acc: {best_val_acc:.4f}")
+
+    # plot results after training is complete
+    plot_results(train_losses, val_losses, train_accuracies, val_accuracies)
         
     print(f"\nTraining complete. Best Val Acc: {best_val_acc:.4f}")
