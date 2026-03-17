@@ -1,10 +1,22 @@
 import os
+import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from model import TaxiDriverClassifier
 from extract_feature import load_data
 from train import TaxiDriverDataset, evaluate
+
+
+def _ensure_numpy_pickle_compat():
+    """Map NumPy private module paths used by older/newer pickles."""
+    if "numpy._core" not in sys.modules:
+        try:
+            import numpy.core as numpy_core
+            sys.modules["numpy._core"] = numpy_core
+        except Exception:
+            # If this fails, torch.load will raise a clear error later.
+            pass
 
 def test_model(test_dir):
     """
@@ -25,6 +37,7 @@ def test_model(test_dir):
         raise RuntimeError("No test data loaded. Check --test_dir and CSV files.")
 
     # ensures weights saved on GPU load correctly on CPU
+    _ensure_numpy_pickle_compat()
     checkpoint = torch.load("best_model.pt", map_location=device)
 
     # extract model parameters from checkpoint
@@ -39,6 +52,10 @@ def test_model(test_dir):
         input_dim = state_dict["lstm.weight_ih_l0"].shape[1]
         num_classes = state_dict["fc2.weight"].shape[0]
         label_map = None
+
+    # normalize checkpoint metadata to plain Python ints
+    if isinstance(label_map, dict):
+        label_map = {int(k): int(v) for k, v in label_map.items()}
 
     # map test labels using training label map if available
     if label_map is not None:

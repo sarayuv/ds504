@@ -4,9 +4,10 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch.nn.utils import clip_grad
 from model import TaxiDriverClassifier
 from extract_feature import load_data
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 if torch.cuda.is_available():
   device = torch.device("cuda:0")
@@ -66,7 +67,7 @@ def train(model, optimizer, criterion, train_loader, device, epoch):
         loss.backward()
 
         # clip gradients to prevent exploding gradients
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        clip_grad.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         # update weights
         optimizer.step()
@@ -127,32 +128,32 @@ def plot_results(train_losses, val_losses, train_accuracies, val_accuracies):
     """
     Plot training and validation loss/accuracy curves.
     """
+    # epochs = range(1, len(train_losses) + 1)
 
-    epochs = range(1, len(train_losses) + 1)
+    # plt.figure(figsize=(12, 5))
 
-    plt.figure(figsize=(12, 5))
+    # # plot loss
+    # plt.subplot(1, 2, 1)
+    # plt.plot(epochs, train_losses, label='Training Loss')
+    # plt.plot(epochs, val_losses, label='Validation Loss')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Loss')
+    # plt.title('Loss Curve')
+    # plt.legend()
 
-    # plot loss
-    plt.subplot(1, 2, 1)
-    plt.plot(epochs, train_losses, label='Training Loss')
-    plt.plot(epochs, val_losses, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Loss Curve')
-    plt.legend()
+    # # plot accuracy
+    # plt.subplot(1, 2, 2)
+    # plt.plot(epochs, train_accuracies, label='Training Accuracy')
+    # plt.plot(epochs, val_accuracies, label='Validation Accuracy')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Accuracy')
+    # plt.title('Accuracy Curve')
+    # plt.legend()
 
-    # plot accuracy
-    plt.subplot(1, 2, 2)
-    plt.plot(epochs, train_accuracies, label='Training Accuracy')
-    plt.plot(epochs, val_accuracies, label='Validation Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.title('Accuracy Curve')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig('training_results.png')
-    plt.show()
+    # plt.tight_layout()
+    # plt.savefig('training_results.png')
+    # plt.show()
+    pass
 
 def train_model():
     """
@@ -179,7 +180,7 @@ def train_model():
 
     # remap labels
     unique_labels = sorted(np.unique(y))
-    label_map = {orig: idx for idx, orig in enumerate(unique_labels)}
+    label_map = {int(orig): int(idx) for idx, orig in enumerate(unique_labels)}
     y_remapped = np.array([label_map[lbl] for lbl in y])
     num_classes = len(unique_labels)
 
@@ -205,7 +206,7 @@ def train_model():
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
     # model, loss, optimizer, scheduler
-    input_dim = X.shape[2]
+    input_dim = int(X.shape[2])
 
     model = TaxiDriverClassifier(input_dim=input_dim, output_dim=num_classes).to(device)
 
@@ -247,13 +248,13 @@ def train_model():
                     "model_state_dict": model.state_dict(),
                     "label_map": label_map,
                     "input_dim": input_dim,
-                    "num_classes": num_classes,
+                    "num_classes": int(num_classes),
                 },
                 MODEL_PATH,
             )
             print(f"New best model saved with Val Acc: {best_val_acc:.4f}")
 
     # plot results after training is complete
-    plot_results(train_losses, val_losses, train_accuracies, val_accuracies)
+    # plot_results(train_losses, val_losses, train_accuracies, val_accuracies)
         
     print(f"\nTraining complete. Best Val Acc: {best_val_acc:.4f}")
