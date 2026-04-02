@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import os
 
-from project3.gan import (
+from gan import (
     BATCH_SIZE,
     DEVICE,
     Z_DIM,
@@ -20,19 +21,22 @@ REAL_LABEL = 0.9
 FAKE_LABEL = 0.0
 DEBUG_BATCH_INTERVAL = 100
 
+# Ensure all generated files are saved in the project3 directory.
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def train():
     g_losses = []
     d_losses = []
 
-    print(f"[DEBUG] Starting training loop on {DEVICE}")
-    print(f"[DEBUG] Epochs: {EPOCHS}, Batches per epoch: {len(train_loader)}")
+    print(f"Starting training loop")
+    print(f"Epochs: {EPOCHS}, Batches per epoch: {len(train_loader)}")
 
     for epoch in range(EPOCHS):
         epoch_d_loss = 0.0
         epoch_g_loss = 0.0
 
-        print(f"[DEBUG] Epoch {epoch + 1}/{EPOCHS} started")
+        print(f"Epoch {epoch + 1}/{EPOCHS} started")
 
         for batch_idx, (real_images, _) in enumerate(train_loader):
             real_images = real_images.view(BATCH_SIZE, -1).to(DEVICE)
@@ -67,13 +71,13 @@ def train():
 
             if batch_idx == 0:
                 print(
-                    "[DEBUG] First batch shapes - "
+                    "First batch shapes - "
                     f"real: {tuple(real_images.shape)}, fake: {tuple(fake_images.shape)}"
                 )
 
             if (batch_idx + 1) % DEBUG_BATCH_INTERVAL == 0 or (batch_idx + 1) == len(train_loader):
                 print(
-                    f"[DEBUG] Epoch {epoch + 1}/{EPOCHS} | "
+                    f"Epoch {epoch + 1}/{EPOCHS} | "
                     f"Batch {batch_idx + 1}/{len(train_loader)} | "
                     f"D Loss: {loss_d.item():.4f} | G Loss: {loss_g.item():.4f}"
                 )
@@ -84,18 +88,18 @@ def train():
         g_losses.append(avg_g_loss)
 
         print(
-            f"[DEBUG] Epoch {epoch + 1}/{EPOCHS} complete | "
+            f"Epoch {epoch + 1}/{EPOCHS} complete | "
             f"Avg D Loss: {avg_d_loss:.4f} | Avg G Loss: {avg_g_loss:.4f}"
         )
 
-    print("[DEBUG] Training complete")
+    print("Training complete")
     return g_losses, d_losses
 
 
 def save_generator():
-    torch.save(netG, "./generator.pt")
-    torch.save(netG.state_dict(), "./generator_state_dict.pt")
-    print("Saved generator to ./generator.pt and ./generator_state_dict.pt")
+    torch.save(netG, os.path.join(PROJECT_DIR, "generator.pt"))
+    torch.save(netG.state_dict(), os.path.join(PROJECT_DIR, "generator_state_dict.pt"))
+    print("Saved generator to project3 directory")
 
 
 def plot_generated_images(num_gen=25):
@@ -122,9 +126,9 @@ def plot_generated_images(num_gen=25):
     plt.title("Generated MNIST Digits")
     plt.imshow(image_grid, cmap="gray")
     plt.tight_layout()
-    plt.savefig("generated_images.png", dpi=150, bbox_inches="tight")
+    plt.savefig(os.path.join(PROJECT_DIR, "generated_images.png"), dpi=150, bbox_inches="tight")
+    print("Saved: generated_images.png in project3 directory")
     plt.show()
-    print("Saved: generated_images.png")
 
 
 def plot_training_losses(g_losses, d_losses):
@@ -137,9 +141,9 @@ def plot_training_losses(g_losses, d_losses):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("training_loss.png", dpi=150)
+    plt.savefig(os.path.join(PROJECT_DIR, "training_loss.png"), dpi=150)
+    print("Saved: training_loss.png in project3 directory")
     plt.show()
-    print("Saved: training_loss.png")
 
 
 if __name__ == "__main__":
