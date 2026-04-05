@@ -12,19 +12,20 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid, save_image
 
-from evaluation import generate_report_ready_grid
+from evaluation import generate_digit_grid
 from gan import DEVICE, GANConfig, build_gan_components, build_train_loader, config_to_dict
 
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-
+# defines and parses command-line arguments for training
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train MNIST GAN with report-ready logging.")
 
     parser.add_argument("--experiment-name", type=str, default="baseline_dcgan")
     parser.add_argument("--notes", type=str, default="")
 
+    # training hyperparameters
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--z-dim", type=int, default=100)
@@ -76,6 +77,7 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+# converts parsed arguments into a GANConfig dataclass instance
 def build_config(args: argparse.Namespace) -> GANConfig:
     return GANConfig(
         batch_size=args.batch_size,
@@ -97,6 +99,7 @@ def build_config(args: argparse.Namespace) -> GANConfig:
     )
 
 
+# creates directories for storing experiment outputs and returns paths for the run and samples
 def make_run_dirs(output_root: str, experiment_name: str) -> Dict[str, str]:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_name = f"{timestamp}_{experiment_name}"
@@ -115,6 +118,7 @@ def make_run_dirs(output_root: str, experiment_name: str) -> Dict[str, str]:
     }
 
 
+# adds noise to labels for training stability
 def noisy_labels(base: torch.Tensor, noise: float) -> torch.Tensor:
     if noise <= 0.0:
         return base
@@ -122,6 +126,7 @@ def noisy_labels(base: torch.Tensor, noise: float) -> torch.Tensor:
     return torch.clamp(base + jitter, 0.0, 1.0)
 
 
+# saves generator and discrimintor loss curves as a plot
 def save_training_losses(g_losses: List[float], d_losses: List[float], output_path: str) -> None:
     plt.figure(figsize=(8, 4))
     plt.plot(g_losses, label="Generator Loss", color="blue")
@@ -136,6 +141,7 @@ def save_training_losses(g_losses: List[float], d_losses: List[float], output_pa
     plt.close()
 
 
+# writes epoch metrics to a CSV file
 def write_epoch_metrics_csv(epoch_metrics: List[Dict[str, float]], output_path: str) -> None:
     fieldnames = ["epoch", "avg_d_loss", "avg_g_loss", "avg_d_real_prob", "avg_d_fake_prob"]
     with open(output_path, "w", newline="", encoding="utf-8") as f:
@@ -144,6 +150,7 @@ def write_epoch_metrics_csv(epoch_metrics: List[Dict[str, float]], output_path: 
         writer.writerows(epoch_metrics)
 
 
+# appends a summary of the experiment to a CSV file
 def append_experiment_summary(summary_path: str, summary_row: Dict[str, object]) -> None:
     os.makedirs(os.path.dirname(summary_path), exist_ok=True)
     file_exists = os.path.exists(summary_path)
@@ -156,6 +163,7 @@ def append_experiment_summary(summary_path: str, summary_row: Dict[str, object])
         writer.writerow(summary_row)
 
 
+# training function
 def train() -> None:
     args = parse_args()
     set_seed(args.seed)
@@ -163,6 +171,7 @@ def train() -> None:
     run_paths = make_run_dirs(args.output_root, args.experiment_name)
     config = build_config(args)
 
+    # prepare dataset and dataloader
     train_loader = build_train_loader(config.batch_size, data_root=args.data_root)
     net_g, net_d, criterion, optimizer_g, optimizer_d = build_gan_components(config, device=DEVICE)
 
@@ -192,10 +201,11 @@ def train() -> None:
     with open(metadata_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"Starting training on {DEVICE}")
+    print(f"Starting training")
     print(f"Run directory: {run_paths['run_dir']}")
     print(f"Epochs: {args.epochs}, Batches per epoch: {len(train_loader)}")
 
+    # training loop: update discriminator and generator for each batch
     for epoch in range(args.epochs):
         net_g.train()
         net_d.train()
@@ -209,17 +219,22 @@ def train() -> None:
 
         print(f"Epoch {epoch + 1}/{args.epochs} started")
 
+        # iterate through batches of real images, update discriminator and generator, and log metrics
         for batch_idx, (real_images, _) in enumerate(train_loader):
             real_images = real_images.to(DEVICE)
             batch_size = real_images.size(0)
 
+            # track latest losses for logging
             latest_d_loss = None
             latest_g_loss = None
 
+            # update discriminator for specified number of steps
             for _ in range(args.d_updates):
+                # generate fake images with the generator
                 noise = torch.randn(batch_size, config.z_dim, device=DEVICE)
                 fake_images = net_g(noise).detach()
 
+                # create noisy labels for real and fake images
                 real_targets = noisy_labels(
                     torch.full((batch_size, 1), args.real_label, device=DEVICE),
                     args.label_noise,
@@ -229,28 +244,37 @@ def train() -> None:
                     args.label_noise,
                 )
 
+                # compute discriminator loss on real and fake images
                 optimizer_d.zero_grad(set_to_none=True)
 
+                # forward pass real and fake images through the discriminator and compute losses
                 output_real = net_d(real_images)
                 output_fake = net_d(fake_images)
 
+                # compute binary cross-entropy loss for real and fake images
                 loss_d_real = criterion(output_real, real_targets)
                 loss_d_fake = criterion(output_fake, fake_targets)
+                # compute sum of real and fake losses for total discriminator loss
                 loss_d = loss_d_real + loss_d_fake
 
+                # backpropagate discriminator loss and update weights
                 loss_d.backward()
                 optimizer_d.step()
 
+                # compute probabilities of real and fake images being classified as real
                 d_prob_real = torch.sigmoid(output_real).mean().item()
                 d_prob_fake = torch.sigmoid(output_fake).mean().item()
 
+                # accumulate losses and probabilities for the epoch and log latest discriminator loss
                 epoch_d_loss_sum += loss_d.item()
                 epoch_d_real_prob_sum += d_prob_real
                 epoch_d_fake_prob_sum += d_prob_fake
                 d_steps += 1
                 latest_d_loss = loss_d.item()
 
+            # update generator for specified number of steps
             for _ in range(args.g_updates):
+                # generate fake images and create noisy real labels
                 noise = torch.randn(batch_size, config.z_dim, device=DEVICE)
                 fake_images = net_g(noise)
                 real_targets_for_g = noisy_labels(
@@ -258,22 +282,25 @@ def train() -> None:
                     args.label_noise,
                 )
 
+                # compute generator loss based on discriminator's classification of the fake images
                 optimizer_g.zero_grad(set_to_none=True)
                 output_fake_for_g = net_d(fake_images)
                 loss_g = criterion(output_fake_for_g, real_targets_for_g)
                 loss_g.backward()
                 optimizer_g.step()
 
+                # accumulate generator loss for the epoch
                 epoch_g_loss_sum += loss_g.item()
                 g_steps += 1
                 latest_g_loss = loss_g.item()
 
+            # log metrics at specified intervals
             if batch_idx == 0:
                 print(
                     "First batch shapes - "
                     f"real: {tuple(real_images.shape)}, fake: {tuple(fake_images.shape)}"
                 )
-
+            
             if (batch_idx + 1) % args.debug_batch_interval == 0 or (batch_idx + 1) == len(train_loader):
                 print(
                     f"Epoch {epoch + 1}/{args.epochs} | "
@@ -281,6 +308,7 @@ def train() -> None:
                     f"D Loss: {latest_d_loss:.4f} | G Loss: {latest_g_loss:.4f}"
                 )
 
+        # compute average losses and probabilities for the epoch and log
         avg_d_loss = epoch_d_loss_sum / max(d_steps, 1)
         avg_g_loss = epoch_g_loss_sum / max(g_steps, 1)
         avg_d_real_prob = epoch_d_real_prob_sum / max(d_steps, 1)
@@ -299,6 +327,7 @@ def train() -> None:
             }
         )
 
+        # generate sample images from the generator at the end of the epoch and save
         net_g.eval()
         with torch.no_grad():
             samples = net_g(fixed_noise)
@@ -306,6 +335,7 @@ def train() -> None:
             sample_grid = make_grid(samples, nrow=8, padding=2)
             save_image(sample_grid, os.path.join(run_paths["samples_dir"], f"epoch_{epoch + 1:03d}.png"))
 
+        # save the best generator model based on lowest average generator loss
         if avg_g_loss < best_g_loss:
             best_g_loss = avg_g_loss
             torch.save(net_g.state_dict(), os.path.join(run_paths["run_dir"], "generator_best_state_dict.pt"))
@@ -319,7 +349,7 @@ def train() -> None:
 
     print("Training complete")
 
-    # Save model artifacts in run directory and project root for compatibility.
+    # save model artifacts
     torch.save(net_g, os.path.join(run_paths["run_dir"], "generator.pt"))
     torch.save(net_g.state_dict(), os.path.join(run_paths["run_dir"], "generator_state_dict.pt"))
     torch.save(net_g, os.path.join(PROJECT_DIR, "generator.pt"))
@@ -332,7 +362,8 @@ def train() -> None:
     metrics_csv_path = os.path.join(run_paths["run_dir"], "epoch_metrics.csv")
     write_epoch_metrics_csv(epoch_metrics, metrics_csv_path)
 
-    coverage_result = generate_report_ready_grid(
+    # generate grid of generated images and save artifacts
+    coverage_result = generate_digit_grid(
         generator=net_g,
         z_dim=config.z_dim,
         device=DEVICE,
@@ -353,6 +384,7 @@ def train() -> None:
 
     shutil.copy2(coverage_grid_path, os.path.join(PROJECT_DIR, "generated_images.png"))
 
+    # compile a summary of the experiment run and save
     run_summary = {
         "run_name": run_paths["run_name"],
         "experiment_name": args.experiment_name,

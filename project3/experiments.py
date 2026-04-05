@@ -1,6 +1,6 @@
 import subprocess
 
-
+# define experiments and their command-line arguments for training
 EXPERIMENTS = [
     {
         "name": "best_baseline_dcgan",

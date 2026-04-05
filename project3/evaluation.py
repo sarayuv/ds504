@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 
+# generates a 5x5 grid of generated images and saves
 class DigitClassifier(nn.Module):
     def __init__(self):
         super().__init__()
@@ -33,6 +34,7 @@ class DigitClassifier(nn.Module):
         return self.classifier(self.features(x))
 
 
+# prepares transformations for the dataset
 def _mnist_transform() -> transforms.Compose:
     return transforms.Compose(
         [
@@ -42,6 +44,7 @@ def _mnist_transform() -> transforms.Compose:
     )
 
 
+# trains the digit classifier on the dataset
 def _train_digit_classifier(
     model: nn.Module,
     device: torch.device,
@@ -56,6 +59,7 @@ def _train_digit_classifier(
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+    # use cross-entropy loss for multi-class classification
     for _ in range(epochs):
         for batch_idx, (images, labels) in enumerate(loader):
             images = images.to(device)
@@ -74,6 +78,7 @@ def _train_digit_classifier(
     return model
 
 
+# loads a pre-trained digit classifier or trains a new one if not found
 def load_or_train_digit_classifier(
     cache_path: str,
     device: torch.device,
@@ -103,6 +108,7 @@ def load_or_train_digit_classifier(
     return model
 
 
+# samples images from the generator and scores them using the classifier
 def _sample_and_score(
     generator: nn.Module,
     classifier: nn.Module,
@@ -115,6 +121,7 @@ def _sample_and_score(
     rng = torch.Generator(device=device)
     rng.manual_seed(seed)
 
+    # sample images in batches and get classifier predictions and probabilities for each batch
     generated_batches: List[torch.Tensor] = []
     pred_batches: List[torch.Tensor] = []
     prob_batches: List[torch.Tensor] = []
@@ -124,6 +131,7 @@ def _sample_and_score(
     classifier.eval()
     with torch.no_grad():
         while remaining > 0:
+            # generate a batch of images and get the classifier's predictions and probabilities for them
             current_bs = min(batch_size, remaining)
             noise = torch.randn(current_bs, z_dim, device=device, generator=rng)
             images = generator(noise)
@@ -135,14 +143,17 @@ def _sample_and_score(
             pred_batches.append(preds.cpu())
             prob_batches.append(probs.cpu())
 
+            # update remaining count based on the current batch size
             remaining -= current_bs
 
+    # concatenate all batches into single tensors
     generated = torch.cat(generated_batches, dim=0)
     preds = torch.cat(pred_batches, dim=0)
     probs = torch.cat(prob_batches, dim=0)
     return generated, preds, probs
 
 
+# selects a set of images with >= 1 image per digit
 def _select_with_digit_coverage(
     images: torch.Tensor,
     preds: torch.Tensor,
@@ -151,11 +162,12 @@ def _select_with_digit_coverage(
 ) -> Tuple[torch.Tensor, Dict[str, object]]:
     num_samples = images.size(0)
 
+    # ensure total_images does not exceed the number of available samples
     selected_indices: List[int] = []
     assigned_digits: List[int] = []
     used = set()
 
-    # Reserve one unique image for each digit 0..9 first.
+    # ensure >= 1 image per digit by selecting the highest confidence image for each digit first
     for digit in range(10):
         ranked_for_digit = torch.argsort(probs[:, digit], descending=True).tolist()
         chosen = None
@@ -170,10 +182,11 @@ def _select_with_digit_coverage(
         assigned_digits.append(digit)
         used.add(chosen)
 
-    # Fill remaining slots with highest-confidence predictions overall.
+    # fill remaining slots with highest confidence images, skip used ones
     confidence = torch.max(probs, dim=1).values
     ranked_indices = torch.argsort(confidence, descending=True).tolist()
 
+    # iterate through ranked indices and select images until enough, skip used ones
     for idx in ranked_indices:
         if len(selected_indices) >= total_images:
             break
@@ -182,9 +195,11 @@ def _select_with_digit_coverage(
         selected_indices.append(idx)
         used.add(idx)
 
+    # trim to total_images there are more
     selected_indices = selected_indices[:total_images]
     selected = images[selected_indices]
 
+    # get the predicted digits for the selected images
     selected_preds = preds[selected_indices].tolist()
     coverage = {str(d): selected_preds.count(d) for d in range(10)}
 
@@ -198,7 +213,9 @@ def _select_with_digit_coverage(
     return selected, metadata
 
 
+# defines experiments to run with their specific command-line arguments for training
 def save_digit_grid(images: torch.Tensor, output_path: str, title: str = "Generated MNIST Digits") -> None:
+    # convert images from [-1, 1] to [0, 1] and move to CPU for plotting
     image_array = images.numpy()
     image_array = (image_array + 1.0) / 2.0
     image_array = np.clip(image_array, 0.0, 1.0)
@@ -206,6 +223,7 @@ def save_digit_grid(images: torch.Tensor, output_path: str, title: str = "Genera
     fig, axes = plt.subplots(5, 5, figsize=(6, 6))
     fig.suptitle(title, fontsize=16)
 
+    # iterate through the 5x5 grid and plot each image
     idx = 0
     for r in range(5):
         for c in range(5):
@@ -218,7 +236,8 @@ def save_digit_grid(images: torch.Tensor, output_path: str, title: str = "Genera
     plt.close(fig)
 
 
-def generate_report_ready_grid(
+# generates grid of images from the generator, scores, and saves
+def generate_digit_grid(
     generator: nn.Module,
     z_dim: int,
     device: torch.device,
