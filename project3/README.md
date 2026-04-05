@@ -35,6 +35,6 @@ Each run creates a folder under `experiments/<timestamp>_<experiment_name>/` wit
 - `generated_images_5x5.png`: Final 25-image grid.
 - `digit_coverage.json`: Coverage of digits 0-9 in the final grid.
 - `samples/`: Epoch-by-epoch generated sample grids.
-- `generator_best_state_dict.pt`, `generator_state_dict.pt`, `generator.pt`.
+- `generator.pt`, `generator_weights.pt`, `generator_best_state_dict.pt`.
 
 A cross-run summary table is maintained at `experiments/experiment_log.csv`.

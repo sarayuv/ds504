@@ -1,5 +1,6 @@
 import argparse
 import csv
+import copy
 import json
 import os
 import random
@@ -180,6 +181,7 @@ def train() -> None:
     d_losses: List[float] = []
     epoch_metrics: List[Dict[str, float]] = []
     best_g_loss = float("inf")
+    best_g_state_dict = None
 
     metadata = {
         "experiment_name": args.experiment_name,
@@ -338,8 +340,9 @@ def train() -> None:
         # save the best generator model based on lowest average generator loss
         if avg_g_loss < best_g_loss:
             best_g_loss = avg_g_loss
-            torch.save(net_g.state_dict(), os.path.join(run_paths["run_dir"], "generator_best_state_dict.pt"))
-            torch.save(net_g.state_dict(), os.path.join(PROJECT_DIR, "generator_best_state_dict.pt"))
+            best_g_state_dict = copy.deepcopy(net_g.state_dict())
+            torch.save(best_g_state_dict, os.path.join(run_paths["run_dir"], "generator_best_state_dict.pt"))
+            torch.save(best_g_state_dict, os.path.join(PROJECT_DIR, "generator_best_state_dict.pt"))
 
         print(
             f"Epoch {epoch + 1}/{args.epochs} complete | "
@@ -349,11 +352,15 @@ def train() -> None:
 
     print("Training complete")
 
-    # save model artifacts
+    # export the best generator for submission
+    if best_g_state_dict is None:
+        best_g_state_dict = copy.deepcopy(net_g.state_dict())
+    net_g.load_state_dict(best_g_state_dict)
+
     torch.save(net_g, os.path.join(run_paths["run_dir"], "generator.pt"))
-    torch.save(net_g.state_dict(), os.path.join(run_paths["run_dir"], "generator_state_dict.pt"))
+    torch.save(best_g_state_dict, os.path.join(run_paths["run_dir"], "generator_weights.pt"))
     torch.save(net_g, os.path.join(PROJECT_DIR, "generator.pt"))
-    torch.save(net_g.state_dict(), os.path.join(PROJECT_DIR, "generator_state_dict.pt"))
+    torch.save(best_g_state_dict, os.path.join(PROJECT_DIR, "generator_weights.pt"))
 
     losses_path = os.path.join(run_paths["run_dir"], "training_loss.png")
     save_training_losses(g_losses, d_losses, losses_path)
@@ -431,6 +438,8 @@ def train() -> None:
             "final_generated_grid": coverage_result["grid_path"],
             "digit_coverage_json": coverage_result["metadata_path"],
             "epoch_metrics_csv": metrics_csv_path,
+            "generator_pt": os.path.join(run_paths["run_dir"], "generator.pt"),
+            "generator_weights": os.path.join(run_paths["run_dir"], "generator_weights.pt"),
             "generator_best_state_dict": os.path.join(run_paths["run_dir"], "generator_best_state_dict.pt"),
         },
     }
@@ -443,7 +452,7 @@ def train() -> None:
     print(f"- {os.path.join(PROJECT_DIR, 'generated_images.png')}")
     print(f"- {os.path.join(PROJECT_DIR, 'training_loss.png')}")
     print(f"- {os.path.join(PROJECT_DIR, 'generator.pt')}")
-    print(f"- {os.path.join(PROJECT_DIR, 'generator_state_dict.pt')}")
+    print(f"- {os.path.join(PROJECT_DIR, 'generator_weights.pt')}")
 
     print("Saved run-level artifacts:")
     print(f"- {run_paths['run_dir']}")
