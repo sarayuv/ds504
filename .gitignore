@@ -212,3 +212,5 @@ project3/TIPS.md
 
 project3/sarayu_vijayanagaram_GAN.zip
 project4/*.pkl
+project4/validation_test/*.pkl
+project4/best_model.pt

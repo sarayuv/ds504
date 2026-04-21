@@ -1,11 +1,30 @@
 # test_model.py
 
 import os
+import pickle
 import torch
 from torch.utils.data import DataLoader, Dataset
 from model import SiameseLSTM
 
-from train import load_data, train_model, evaluate, SiameseDataset
+class SiameseDataset(Dataset):
+    def __init__(self, pairs, labels):
+        self.pairs = pairs
+        self.labels = labels
+        
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        x = self.pairs[idx]
+        y = self.labels[idx]
+        return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.float)
+
+def load_data(filename):
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+    pairs = data['pairs']
+    labels = data['labels']
+    return pairs, labels
 
 def test_model(test_dir):
     """
@@ -22,14 +41,26 @@ def test_model(test_dir):
     # Load test data
     test_pairs, test_labels = load_data(test_file_pattern)
 
-    # Get the device
-
+    test_dataset = SiameseDataset(test_pairs, test_labels)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
     
-    ###########################
-    # YOUR IMPLEMENTATION HERE #
-
-    ###########################
-
-
+    # Get the device
+    model = SiameseLSTM(input_dim=6, hidden_dim=64).to(device)
+    model.load_state_dict(torch.load('best_model.pt', map_location=device))
+    model.eval()
+    
+    correct = 0
+    total = 0
+    
+    with torch.no_grad():
+        for x, y in test_loader:
+            x, y = x.to(device), y.to(device)
+            output = model(x)
+            pred = (output > 0.5).float()
+            correct += (pred == y).sum().item()
+            total += y.size(0)
+    
+    test_accu = correct / total
+    
     # Print the accuracy in the required format
     print(f"Accuracy={test_accu:.4f}")
