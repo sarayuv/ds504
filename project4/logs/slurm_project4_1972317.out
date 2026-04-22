@@ -1,0 +1,105 @@
+[INFO] Host: gpu-4-21.int.turing.wpi.edu
+[INFO] CUDA devices:
+Wed Apr 22 17:16:52 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 570.133.20             Driver Version: 570.133.20     CUDA Version: 12.8     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A30                     On  |   00000000:17:00.0 Off |                    0 |
+| N/A   32C    P0             28W /  165W |       0MiB /  24576MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+[INFO] Ensuring datasets are available
+[INFO] Verifying PyTorch CUDA availability
+[INFO] torch=2.5.1+cu124, cuda_available=True
+[INFO] Preparing training pairs
+Generating positive pairs...
+Generating negative pairs...
+Generated pairs shape: (20000, 2, 100, 6)
+Generated labels shape: (20000,)
+Saved pairs and labels to X_Y_train400_pairs.pkl
+[INFO] Preparing validation pairs
+[INFO] Running training (baseline + v2)
+Starting training process...
+
+==================================================
+Training baseline model
+==================================================
+Epoch 1/15 - Train Loss: 0.6737, Train Acc: 0.5651, Val Loss: 0.6714, Val Acc: 0.5985
+Epoch 2/15 - Train Loss: 0.6733, Train Acc: 0.5711, Val Loss: 0.6380, Val Acc: 0.6252
+Epoch 3/15 - Train Loss: 0.6300, Train Acc: 0.6207, Val Loss: 0.6212, Val Acc: 0.6240
+Epoch 4/15 - Train Loss: 0.6241, Train Acc: 0.6174, Val Loss: 0.6141, Val Acc: 0.6210
+Epoch 5/15 - Train Loss: 0.6155, Train Acc: 0.6242, Val Loss: 0.6010, Val Acc: 0.6475
+Epoch 6/15 - Train Loss: 0.6034, Train Acc: 0.6484, Val Loss: 0.5991, Val Acc: 0.6567
+Epoch 7/15 - Train Loss: 0.5906, Train Acc: 0.6694, Val Loss: 0.5840, Val Acc: 0.6755
+Epoch 8/15 - Train Loss: 0.5782, Train Acc: 0.6801, Val Loss: 0.5697, Val Acc: 0.6813
+Epoch 9/15 - Train Loss: 0.5625, Train Acc: 0.6854, Val Loss: 0.5600, Val Acc: 0.6997
+Epoch 10/15 - Train Loss: 0.5563, Train Acc: 0.6971, Val Loss: 0.5470, Val Acc: 0.6875
+Epoch 11/15 - Train Loss: 0.5649, Train Acc: 0.6841, Val Loss: 0.5800, Val Acc: 0.6633
+Epoch 12/15 - Train Loss: 0.5595, Train Acc: 0.6941, Val Loss: 0.5320, Val Acc: 0.7085
+Epoch 13/15 - Train Loss: 0.5374, Train Acc: 0.7087, Val Loss: 0.5424, Val Acc: 0.7003
+Epoch 14/15 - Train Loss: 0.5277, Train Acc: 0.7216, Val Loss: 0.5136, Val Acc: 0.7320
+Epoch 15/15 - Train Loss: 0.5157, Train Acc: 0.7299, Val Loss: 0.5233, Val Acc: 0.7242
+Baseline training complete. Best val accuracy: 0.7320
+
+==================================================
+Training v2 model (with attention)
+==================================================
+Epoch 1/25 - Train Loss: 0.6226, Train Acc: 0.6349, Val Loss: 0.5840, Val Acc: 0.6883
+  -> Saved best model with val_acc: 0.6883
+Epoch 2/25 - Train Loss: 0.5736, Train Acc: 0.6920, Val Loss: 0.5375, Val Acc: 0.7200
+  -> Saved best model with val_acc: 0.7200
+Epoch 3/25 - Train Loss: 0.5304, Train Acc: 0.7199, Val Loss: 0.5080, Val Acc: 0.7188
+Epoch 4/25 - Train Loss: 0.4883, Train Acc: 0.7599, Val Loss: 0.4597, Val Acc: 0.7837
+  -> Saved best model with val_acc: 0.7837
+Epoch 5/25 - Train Loss: 0.4502, Train Acc: 0.7861, Val Loss: 0.4287, Val Acc: 0.8003
+  -> Saved best model with val_acc: 0.8003
+Epoch 6/25 - Train Loss: 0.4285, Train Acc: 0.7971, Val Loss: 0.4259, Val Acc: 0.7977
+Epoch 7/25 - Train Loss: 0.4117, Train Acc: 0.8086, Val Loss: 0.4148, Val Acc: 0.8070
+  -> Saved best model with val_acc: 0.8070
+Epoch 8/25 - Train Loss: 0.4025, Train Acc: 0.8122, Val Loss: 0.4042, Val Acc: 0.8107
+  -> Saved best model with val_acc: 0.8107
+Epoch 9/25 - Train Loss: 0.3902, Train Acc: 0.8201, Val Loss: 0.3972, Val Acc: 0.8167
+  -> Saved best model with val_acc: 0.8167
+Epoch 10/25 - Train Loss: 0.3824, Train Acc: 0.8277, Val Loss: 0.3833, Val Acc: 0.8197
+  -> Saved best model with val_acc: 0.8197
+Epoch 11/25 - Train Loss: 0.3736, Train Acc: 0.8294, Val Loss: 0.3782, Val Acc: 0.8245
+  -> Saved best model with val_acc: 0.8245
+Epoch 12/25 - Train Loss: 0.3652, Train Acc: 0.8339, Val Loss: 0.3824, Val Acc: 0.8200
+Epoch 13/25 - Train Loss: 0.3590, Train Acc: 0.8351, Val Loss: 0.3747, Val Acc: 0.8320
+  -> Saved best model with val_acc: 0.8320
+Epoch 14/25 - Train Loss: 0.3491, Train Acc: 0.8427, Val Loss: 0.3748, Val Acc: 0.8263
+Epoch 15/25 - Train Loss: 0.3433, Train Acc: 0.8478, Val Loss: 0.3813, Val Acc: 0.8165
+Epoch 16/25 - Train Loss: 0.3375, Train Acc: 0.8470, Val Loss: 0.3711, Val Acc: 0.8353
+  -> Saved best model with val_acc: 0.8353
+Epoch 17/25 - Train Loss: 0.3342, Train Acc: 0.8499, Val Loss: 0.3605, Val Acc: 0.8387
+  -> Saved best model with val_acc: 0.8387
+Epoch 18/25 - Train Loss: 0.3316, Train Acc: 0.8508, Val Loss: 0.3933, Val Acc: 0.8253
+Epoch 19/25 - Train Loss: 0.3246, Train Acc: 0.8535, Val Loss: 0.3747, Val Acc: 0.8335
+Epoch 20/25 - Train Loss: 0.3181, Train Acc: 0.8576, Val Loss: 0.3773, Val Acc: 0.8307
+Epoch 21/25 - Train Loss: 0.3147, Train Acc: 0.8592, Val Loss: 0.4014, Val Acc: 0.8340
+Epoch 22/25 - Train Loss: 0.2959, Train Acc: 0.8699, Val Loss: 0.3559, Val Acc: 0.8383
+Epoch 23/25 - Train Loss: 0.2876, Train Acc: 0.8741, Val Loss: 0.3627, Val Acc: 0.8397
+  -> Saved best model with val_acc: 0.8397
+Epoch 24/25 - Train Loss: 0.2851, Train Acc: 0.8754, Val Loss: 0.3854, Val Acc: 0.8385
+Epoch 25/25 - Train Loss: 0.2811, Train Acc: 0.8779, Val Loss: 0.3711, Val Acc: 0.8433
+  -> Saved best model with val_acc: 0.8433
+v2 training complete. Best val accuracy: 0.8433
+
+==================================================
+Training complete.
+Baseline best val accuracy: 0.7320
+v2 best val accuracy: 0.8433
+Final model saved as best_model.pt
+[ERROR] Missing best_model_baseline.pt after training

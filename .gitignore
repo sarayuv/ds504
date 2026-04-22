@@ -213,12 +213,12 @@ project3/sarayu_vijayanagaram_GAN.zip
 
 project4/*.pkl
 project4/validation_test/*.pkl
+project4/*.sbatch
 
 # DS504 local artifacts
 _pre_git_layout_backup_*/
 data/
 project2/data/
 **/data/**/*.csv
-*.pt
 *.pth
 *.ckpt
